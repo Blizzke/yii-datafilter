@@ -1,6 +1,6 @@
 <?php
 /**
- *
+ * This filter renders itself as a dropdown
  *
  * @author    Steve Guns <steve@bedezign.com>
  * @package   dataFilter
@@ -22,9 +22,7 @@ class DropDownDataFilter extends DataFilter
 {
 	public function getHtml($oWidget)
 	{
-		$aOptions = CMap::mergeArray($this->_aOptions, $this->filterer->model->dataFilterGetOptions($this));
-		if (!count($aOptions))
-			return '';
+		$aOptions = $this->_getOptions();
 
 		$aList = array();
 		if (isset($aOptions['listData']))
@@ -33,16 +31,15 @@ class DropDownDataFilter extends DataFilter
 			unset($aOptions['listData']);
 		}
 
-		$sHtml = '';
+		$sId = $this->id;
+		$aHtml = array();
 		if (isset($aOptions['label']))
-		{
-			$sHtml = CHtml::tag('label', array('for' => $this->htmlName), $aOptions['label']);
-			unset($aOptions['label']);
-		}
+			$aHtml[$sId . '_label'] = CHtml::tag('label', array('for' => $this->htmlName), $aOptions['label']);
+
 		$sValue = !$this->isEmpty ? $this->value : (isset($aOptions['selected']) ? $aOptions['selected'] : '');
 
-		$sHtml .= CHtml::dropDownList($this->htmlName, $sValue, $aList, isset($aOptions['html']) ? $aOptions['html'] : array());
+		$aHtml[$sId] = CHtml::dropDownList($this->htmlName, $sValue, $aList, $aOptions['html']);
 
-		return $sHtml;
+		return $aHtml;
 	}
 }

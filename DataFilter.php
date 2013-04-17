@@ -18,8 +18,10 @@ abstract class DataFilter extends CComponent
 	protected $_bEnabled    = TRUE;
 	/** @var mixed          Last assigned value for this filter */
 	protected $_mValue      = NULL;
-	/** @var array          Any basic options (will be included with the ones from the model). Use "html" for any html options you wish to pass on */
+	/** @var array          Any basic options (will be merged with the ones provided by the model). Use "html" for any htmlOptions you want to pass on */
 	protected $_aOptions    = array();
+
+	protected static $_gnCounter = 0;
 
 	public function __construct($sFilterId = NULL, $aOptions = array())
 	{
@@ -27,11 +29,15 @@ abstract class DataFilter extends CComponent
 		$this->_aOptions  = $aOptions;
 	}
 
-	public function setFilterer($oFilterer)   { $this->_oFilterer = $oFilterer; }
+	public function setFilterer($oFilterer)
+	{
+		$this->_oFilterer = $oFilterer;
+	}
+
 	public function getFilterer()             { return $this->_oFilterer; }
 
 	public function setId($sId)               { $this->_sFilterId = $sId; }
-	public function getId()                   { return !empty($this->_sFilterId) ? $this->_sFilterId : 'dropdown'; }
+	public function getId()                   { return !empty($this->_sFilterId) ? $this->_sFilterId : 'filter' . ++ self::$_gnCounter; }
 
 	public function setEnabled($bEnabled)     { $this->_bEnabled = $bEnabled; }
 	public function getEnabled()              { return $this->_bEnabled; }
@@ -49,11 +55,14 @@ abstract class DataFilter extends CComponent
 	public function getActiveId()             { return $this->filterer->id . '_' . $this->id; }
 
 	/**
-	 * Returns the HTML code for the filter
+	 * Returns the HTML code for the filter as separate elements with identifiers
+	 * Eg: filter "filter" returns array('filter_label' => 'html', 'filter' => 'html');
+	 * @param CWidget $oWidget
+	 * @return string[]
 	 */
 	public function getHtml($oWidget)
 	{
-		return '';
+		return array();
 	}
 
 	/**
@@ -88,33 +97,56 @@ abstract class DataFilter extends CComponent
 
 	/**
 	 * Returns whatever data is needed to save this filter.
+	 * @return array
 	 */
 	public function save()
 	{
 		return array
 		(
-			'id'      => $this->id,
-			'enabled' => $this->enabled,
-			'value'   => $this->value,
-			'options' => $this->options,
+			get_class($this),
+			array
+			(
+				'id'      => $this->id,
+				'enabled' => $this->enabled,
+				'value'   => $this->value,
+				'options' => $this->options,
+			)
 		);
 	}
 
 	/**
-	 * Sets properties for the current filter based on the given data. This is called when the filter is restored
-	 * from the session and can contain any configuration setting
-	 * Note: If you save using correct property names there's no need to override this function
-	 * @param array $data
-	 * @return bool
+	 * Create a filter instance based on the given data
+	 * @param $oFilterer
+	 * @param $aData
+	 * @return DataFilter|NULL
 	 */
-	public function restore($data)
+	public static function restore($oFilterer, $aData)
 	{
-		if (!is_array($data))
-			return FALSE;
+		if (!is_array($aData))
+			return NULL;
 
-		foreach ($data as $sProperty => $value)
-			$this->$sProperty = $value;
+		if (!class_exists($aData[0]))
+			return NULL;
 
-		return TRUE;
+		$oInstance = new $aData[0];
+		$oInstance->filterer = $oFilterer;
+
+		foreach ($aData[1] as $sProperty => $value)
+			$oInstance->$sProperty = $value;
+
+		return $oInstance;
+	}
+
+	protected function _getOptions()
+	{
+		$aModelOptions = $this->filterer->model->dataFilterGetOptions($this);
+		if (!is_array($aModelOptions))
+			$aModelOptions = array($aModelOptions);
+
+		$aOptions = CMap::mergeArray($this->_aOptions, $aModelOptions);
+		if (!isset($aOptions['html']))
+			$aOptions['html'] = array();
+
+		return $aOptions;
 	}
 }
