@@ -75,19 +75,37 @@ class DataFilterer extends CComponent
 			return NULL;
 
 		$this->_aFilters[$oFilter->activeId] = $oFilter;
+		$this->onFilterAdd(new CEvent($this, array('filter' => $oFilter)));
 		return $oFilter;
 	}
 
-	public function getFilterCount()  { return count($this->_aFilters); }
+	public function removeFilter($sIdentifier)
+	{
+		if (!isset($this->_aFilters[$sIdentifier]))
+			return;
 
+		$this->onFilterRemoved(new CEvent($this, array('filter' => $this->_aFilters[$sIdentifier])));
+		unset($this->_aFilters[$sIdentifier]);
+	}
+
+	public function getFilters()        { return $this->_aFilters; }
+	public function getFilterCount()    { return count($this->_aFilters); }
+
+	/**
+	 * Collects the HTML code for all the filters and returns it.
+	 * The return format is an array of separate html blocks with the filter-id as key (and sometimes an extra label)
+	 * @param CWidget $oWidget
+	 * @param bool    $bRenderDisabled
+	 * @return string[]
+	 */
 	public function getHtml($oWidget, $bRenderDisabled = FALSE)
 	{
-		$sHtml = '';
+		$aHtml = array();
 		foreach ($this->_aFilters as $oFilter)
 			if ($oFilter->enabled || $bRenderDisabled)
-				$sHtml .= $oFilter->getHtml($oWidget);
+				$aHtml = array_merge($aHtml, $oFilter->getHtml($oWidget));
 
-		return $sHtml;
+		return $aHtml;
 	}
 
 	/**
@@ -133,7 +151,7 @@ class DataFilterer extends CComponent
 
 		$aData = array();
 		foreach ($this->_aFilters as $sFilterId => $oFilter)
-			$aData[$sFilterId] = array(get_class($oFilter), $oFilter->save());
+			$aData[$sFilterId] = $oFilter->save();
 
 		Yii::app()->user->setState($this->sessionVariable, $aData);
 		return TRUE;
@@ -152,13 +170,8 @@ class DataFilterer extends CComponent
 			return FALSE;
 
 		foreach ($aData as $sFilterId => $aFilter)
-			if (class_exists($aFilter[0]))
-			{
-				$oFilter = new $aFilter[0];
-				$oFilter->filterer = $this;
-				if ($oFilter->restore($aFilter[1]))
-					$this->_aFilters[$sFilterId] = $oFilter;
-			}
+			if ($oFilter = DataFilter::restore($this, $aFilter))
+				$this->_aFilters[$sFilterId] = $oFilter;
 
 		return TRUE;
 	}
@@ -191,5 +204,15 @@ class DataFilterer extends CComponent
 		}
 
 		return $oDataFilter;
+	}
+
+	public function onFilterAdd($oEvent)
+	{
+		$this->raiseEvent('onFilterAdd', $oEvent);
+	}
+
+	public function onFilterRemoved($oEvent)
+	{
+		$this->raiseEvent('onFilterRemoved', $oEvent);
 	}
 }
