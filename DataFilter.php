@@ -26,7 +26,7 @@ abstract class DataFilter extends CComponent
 	public function __construct($sFilterId = NULL, $aOptions = array())
 	{
 		$this->_sFilterId = $sFilterId;
-		$this->_aOptions  = $aOptions;
+		$this->_aOptions  = CMap::mergeArray($this->_aOptions, $aOptions);
 	}
 
 	public function setFilterer($oFilterer)
@@ -90,7 +90,7 @@ abstract class DataFilter extends CComponent
 	 * If no applicable was found (nothing posted/submitted), the filter should reset its value to NULL.
 	 * @param $aData
 	 */
-	public function setRequest($aData)
+	public function loadData($aData)
 	{
 		$this->value = isset($aData[$this->id]) ? $aData[$this->id] : NULL;
 	}

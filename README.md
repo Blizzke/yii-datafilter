@@ -7,6 +7,11 @@ It happens often enough that you need to be able to filter data from models.
 If you are anything like me, you are probably sick of (re)writing the same code all the time.
 Hence this extension. The goal is to develop a generic filter "framework" that can easily be added to any model you want.
 
+## Todo ##
+
+* Filter Validation
+* Dynamic adding of filters to form (based on the Dynamic filter)
+
 ## Usage ##
 
 I am currently limiting the information in this section as it's expected to change quite a bit in the future.

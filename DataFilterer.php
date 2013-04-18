@@ -22,6 +22,8 @@ class DataFilterer extends CComponent
 	protected $_aFilters          = array();
 	protected $_sSessionVariable  = NULL;
 	protected $_sIdentifier       = NULL;
+	/** @var array                Contains the data from the last load */
+	protected $_aLastRequest      = NULL;
 
 	/**
 	 * Model that can be used by the filters as a base to generate their HTML from, or interpret the incoming data.
@@ -54,6 +56,7 @@ class DataFilterer extends CComponent
 	public function setSessionVariable($sSessionVariable)
 	{
 		$this->_sSessionVariable = $sSessionVariable;
+
 		// Make sure we get the opportunity to save ourselves
 		Yii::app()->attachEventHandler('onEndRequest', array($this, 'saveToSession'));
 	}
@@ -123,19 +126,39 @@ class DataFilterer extends CComponent
 	 * If anything was submitted for the filterer, this function will return it
 	 * @return array
 	 */
-	public function getSubmittedData()
+	public function getIsSubmitted()
 	{
-		return Yii::app()->request->getParam($this->id);
+		return Yii::app()->request->getParam($this->id) !== NULL;
 	}
 
 	/**
-	 * Specifies the user data submitted for the filters (or custom data to initialize)
-	 * @param array $aData
+	 * Returns whether the filterer has received data and can run (you can use this to auto-run the filterer after
+	 * either a submit or a restore that had previous data)
+	 * @return bool
 	 */
-	public function setRequest($aData)
+	public function getHasData()
 	{
+		return $this->_aLastRequest !== NULL;
+	}
+
+	/**
+	 * Instructs the filterer to load either the specified data (or the submitted one if $aData is NULL)
+	 * @param array|NULL $aData   If NULL, load from either GET or POST
+	 * @return bool               TRUE if data was loaded, FALSE if not
+	 */
+	public function loadData($aData = NULL)
+	{
+		if (!$aData)
+			$aData = Yii::app()->request->getParam($this->id);
+		if (!$aData)
+			return FALSE;
+
 		foreach ($this->_aFilters as $oFilter)
-			$oFilter->setRequest($aData);
+			$oFilter->loadData($aData);
+
+		$this->_aLastRequest = $aData;
+
+		return TRUE;
 	}
 
 	/**
@@ -149,11 +172,11 @@ class DataFilterer extends CComponent
 		if (!$this->sessionVariable)
 			return FALSE;
 
-		$aData = array();
+		$aFilters = array();
 		foreach ($this->_aFilters as $sFilterId => $oFilter)
-			$aData[$sFilterId] = $oFilter->save();
+			$aFilters[$sFilterId] = $oFilter->save();
 
-		Yii::app()->user->setState($this->sessionVariable, $aData);
+		Yii::app()->user->setState($this->sessionVariable, array('last' => $this->_aLastRequest, 'filters' => $aFilters));
 		return TRUE;
 	}
 
@@ -169,9 +192,11 @@ class DataFilterer extends CComponent
 		if (!$aData)
 			return FALSE;
 
-		foreach ($aData as $sFilterId => $aFilter)
+		foreach ($aData['filters'] as $sFilterId => $aFilter)
 			if ($oFilter = DataFilter::restore($this, $aFilter))
 				$this->_aFilters[$sFilterId] = $oFilter;
+
+		$this->_aLastRequest = isset($aData['last']) ? $aData['last'] : NULL;
 
 		return TRUE;
 	}

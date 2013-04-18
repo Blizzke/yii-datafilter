@@ -16,7 +16,7 @@
  */
 class DataFiltererWidget extends CWidget
 {
-	/** @var string         CSS file to use. Will use assets/dataFilter.css if none was specified */
+	/** @var string         CSS file to include. FALSE to disable or anything "empty" to use "assets/dataFilter.css" */
 	public $cssFile         = NULL;
 	/** @var DataFilterer   The associated DataFilterer instance */
 	public $filterer        = NULL;
@@ -27,7 +27,7 @@ class DataFiltererWidget extends CWidget
 	/** @var bool           Set to TRUE to also render form tags */
 	public $renderForm      = TRUE;
 	/** @var array          Any html options for the form and "action" and "method" */
-	public $formOptions     = array('method' => 'get');
+	public $formOptions     = array('method' => 'post');
 
 	/** @var bool           If FALSE, the filter related labels will be rendered separately. In separator mode, both label and
 	 *                      "input" get a separator, in token mode they are available as {filter_label} and {filter}. If TRUE
@@ -35,11 +35,16 @@ class DataFiltererWidget extends CWidget
 	public $mergeLabels     = TRUE;
 	/** @var string         Default separator between an input+label */
 	public $separator       = '<br />';
-	/** @var string         If this has a value, "token mode" will be used. The string should contain {name} tokens that
-	 *                      will be replaced by the html content. If you want separate control over the labels, disable
-	 *                      "mergeLabels" and you have separate label tokens {name_label} */
+	/** @var string         If this has a value, "token mode" will be used. The string should contain {filterName} tokens that
+	 *                      will be replaced by their html content. If you want separate control over the labels, disable
+	 *                      "mergeLabels" and you have separate label tokens {filterName_label}.
+	 *                      There are some special tokens:
+	 *                      {filters}   - The complete filters, generated with separators & obeying "mergeLabels"
+	 *                      {formBegin} - Form open tag (if renderForm is true)
+	 *                      {formEnd}   - For close tag   "
+	 *                      {submit}    - Submit button (encapsulated in a div with class "actions", if renderSubmit is true)
+	 *                      {form}      - {formBegin}{filters}{submit}{formEnd} */
 	public $template        = NULL;
-
 	/** @var bool           TRUE to render a submit button */
 	public $renderSubmit    = TRUE;
 	/** @var array          Any extra html options for the submit and optionally a "label" */
@@ -50,7 +55,7 @@ class DataFiltererWidget extends CWidget
 		if (!$this->filterer)
 			throw new RuntimeException('A filterer instance is required');
 
-		if (!$this->cssFile)
+		if ($this->cssFile === NULL)
 			$this->cssFile = Yii::app()->assetManager->publish(dirname(__FILE__) . '/assets/dataFilter.css');
 
 		parent::init();
@@ -62,14 +67,6 @@ class DataFiltererWidget extends CWidget
 
 		$aHtml = $this->filterer->getHtml($this);
 
-		if ($this->renderSubmit)
-		{
-			$sLabel = isset($this->submitOptions['label']) ? $this->submitOptions['label'] : 'Submit';
-			unset($this->submitOptions['label']);
-			$aHtml['submit'] = CHtml::openTag('div', array('class' => 'actions')) .
-				CHtml::submitButton($sLabel, $this->submitOptions) . CHtml::closeTag('div');
-		}
-
 		if ($this->mergeLabels)
 		{
 			$aHtmlNew = array();
@@ -80,15 +77,25 @@ class DataFiltererWidget extends CWidget
 			$aHtml = $aHtmlNew;
 		}
 
-		$sHtml = $this->_renderBody($aHtml);
+		if ($this->renderSubmit)
+		{
+			$sLabel = isset($this->submitOptions['label']) ? $this->submitOptions['label'] : 'Submit';
+			unset($this->submitOptions['label']);
+			$aHtml['submit'] = CHtml::openTag('div', array('class' => 'actions')) .
+				CHtml::submitButton($sLabel, $this->submitOptions) . CHtml::closeTag('div');
+		}
 
 		if ($this->renderForm)
 		{
 			$sAction = isset($this->formOptions['action']) ? $this->formOptions['action'] : Yii::app()->request->url;
 			$sMethod = isset($this->formOptions['method']) ? $this->formOptions['method'] : 'get';
 			unset($this->formOptions['action'], $this->formOptions['method']);
-			$sHtml = CHtml::beginForm($sAction, $sMethod, $this->formOptions) . $sHtml . CHtml::endForm();
+
+			$aHtml['formBegin'] = CHtml::beginForm($sAction, $sMethod, $this->formOptions);
+			$aHtml['formEnd'] = CHtml::endForm();
 		}
+
+		$sHtml = $this->_renderBody($aHtml);
 
 		if ($this->filterClass)
 			$sHtml = CHtml::tag('div', array('class' => $this->filterClass), $sHtml);
@@ -98,19 +105,23 @@ class DataFiltererWidget extends CWidget
 
 	protected function _renderBody($aHtml)
 	{
-		if (!empty($this->template))
-		{
-			// Render in "token mode"
-			$aTokens = array();
-			foreach ($aHtml as $sToken => $sCode)
-				$aTokens['{' . $sToken . '}'] = $sCode;
-			// Replace all tokens with their values
-			$sHtml = strtr($this->template, $aTokens);
-			// Get rid of all the other tokens
-			return preg_replace('/{[\w_-]+?}/', '', $sHtml);
-		}
+		$sTemplate = empty($this->template) ? '{form}' : $this->template;
+		// Replace the form token with its components (easier on the html array)
+		$sTemplate = str_replace('{form}', '{formBegin}{filters}{submit}{formEnd}', $sTemplate);
 
-		return implode($this->separator, $aHtml);
+		// Wrap all variables in curly brackets
+		$aTokens = array();
+		foreach ($aHtml as $sToken => $sCode)
+			$aTokens['{' . $sToken . '}'] = $sCode;
+
+		unset($aHtml['formBegin'], $aHtml['formEnd'], $aHtml['submit']);
+		$aTokens['{filters}'] = implode($this->separator, $aHtml);
+
+		// Replace all tokens with their values
+		$sHtml = strtr($sTemplate, $aTokens);
+
+		// Get rid of all the other tokens
+		return preg_replace('/{[\w_-]+?}/', '', $sHtml);
 	}
 
 }

@@ -34,7 +34,7 @@ class DropDownDataFilter extends DataFilter
 		$sId = $this->id;
 		$aHtml = array();
 		if (isset($aOptions['label']))
-			$aHtml[$sId . '_label'] = CHtml::tag('label', array('for' => $this->htmlName), $aOptions['label']);
+			$aHtml[$sId . '_label'] = CHtml::label($aOptions['label'], $this->htmlName);
 
 		$sValue = !$this->isEmpty ? $this->value : (isset($aOptions['selected']) ? $aOptions['selected'] : '');
 

@@ -1,15 +1,15 @@
 <?php
 /**
- *
+ * Checkbox filter.
  *
  * @author    Steve Guns <steve@bedezign.com>
- * @package   9Maand.com
- * @category
+ * @package   dataFilter
+ * @category  com.bedezign.extensions
  * @copyright 2013 B&E DeZign
  */
 
 /**
- * value = 1 (the value to assign to the checkbox (can also be added to 'html'
+ * value = the value to assign to the checkbox (default = 1)
  * label
  */
 class CheckboxDataFilter extends DataFilter
@@ -23,19 +23,38 @@ class CheckboxDataFilter extends DataFilter
 		$sId = $this->id;
 		$aHtml = array();
 		if (isset($aOptions['label']))
-			$aHtml[$sId . '_label'] = CHtml::tag('label', array('for' => $this->htmlName), $aOptions['label']);
+			$aHtml[$sId . '_label'] = CHtml::label($aOptions['label'], $this->htmlName);
 
-		$bChecked = isset($aOptions['checked']) ? $aOptions['checked'] : FALSE;
-		if (isset($aOptions['value']))
-			$aOptions['html']['value'] = $aOptions['value'];
-
-		if (!$bChecked && !$this->isEmpty && isset($aOptions['html']['value']))
-			// If our current value = the specified value, we should be checked
-			if ($this->value == $aOptions['html']['value'])
-				$bChecked = TRUE;
+		// Not checked by default, unless the value was set already before, in which case we mirror that
+		$bChecked = FALSE;
+		if (!$this->isEmpty)
+			$bChecked = $this->value;
 
 		$aHtml[$sId] = CHtml::checkBox($this->htmlName, $bChecked,  $aOptions['html']);
 
 		return $aHtml;
+	}
+
+	public function getIsEmpty()
+	{
+		return !$this->_mValue;
+	}
+
+	public function setValue($mValue)
+	{
+		// If we receive a boolean, that is our checked status
+		if (is_bool($mValue))
+			$this->_mValue = $mValue;
+		else
+			// Otherwise the value needs to match our value
+			$this->_mValue = $mValue == $this->_aOptions['value'];
+	}
+
+	public function getValue()
+	{
+		// If we are checked, return the regular value, otherwise return null
+		if ($this->_mValue)
+			return $this->_aOptions['value'];
+		return NULL;
 	}
 }

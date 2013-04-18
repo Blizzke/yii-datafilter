@@ -71,8 +71,16 @@ class DynamicDataFilter extends DropDownDataFilter
 		return $this->filterer->addFilter($oFilter);
 	}
 
+	/**
+	 * Setting for the filters array, used during restore
+	 * @param array $aFilters
+	 */
 	public function setFilters($aFilters) { $this->_aFilters = $aFilters; }
 
+	/**
+	 * Override the dropdown filter getOptions as we need to build our own list
+	 * @return array
+	 */
 	protected function _getOptions()
 	{
 		$aOptions = parent::_getOptions();
@@ -95,6 +103,12 @@ class DynamicDataFilter extends DropDownDataFilter
 		return $aSave;
 	}
 
+	/**
+	 * Determine the occurence of a filter with the specified identifier. Stats returned are total count that the filter
+	 * is found active and what the highest number behind the identifier is
+	 * @param $sIdentifier
+	 * @return array
+	 */
 	protected function _getFilterStats($sIdentifier)
 	{
 		$nFound = 0;
